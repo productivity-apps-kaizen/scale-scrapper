@@ -1,0 +1,17 @@
+[Unit]
+Description=Renpho Scale BLE Listener
+After=bluetooth.target network.target
+Wants=bluetooth.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/scale-scrapper
+ExecStart=/usr/bin/python3 /home/pi/scale-scrapper/listener.py --daemon
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

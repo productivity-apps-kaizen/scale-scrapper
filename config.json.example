@@ -1,0 +1,22 @@
+{
+  "scale_mac": "XX:XX:XX:XX:XX:XX",
+  "scale_name_hint": "ES-26",
+  "user": {
+    "dob": "YYYY-MM-DD",
+    "height_cm": 180,
+    "sex": "male"
+  },
+  "active_window": {
+    "start_hour": 6,
+    "end_hour": 10
+  },
+  "mongodb": {
+    "uri": "mongodb+srv://user:password@cluster.mongodb.net/?appName=myApp",
+    "database": "health",
+    "collection": "weight"
+  },
+  "ntfy": {
+    "topic": ""
+  },
+  "log_file": "weights.json"
+}
