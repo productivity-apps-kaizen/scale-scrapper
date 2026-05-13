@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import signal
 import sys
 import platform
 from datetime import datetime, timedelta
@@ -29,7 +30,7 @@ from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
 
-from storage import save_reading
+from storage import save_reading, push_alert
 from metrics import compute as compute_metrics, age_from_dob
 
 
@@ -41,8 +42,27 @@ CANDIDATE_NOTIFY_UUIDS = [
 
 # After a successful reading, ignore the scale for this long (avoid double-logging)
 COOLDOWN = timedelta(minutes=5)
+TEMP_WARN_C = 70
+TEMP_CHECK_INTERVAL = 60  # seconds
 
 IS_MACOS = platform.system() == "Darwin"
+
+
+def read_cpu_temp() -> float | None:
+    try:
+        raw = Path("/sys/class/thermal/thermal_zone0/temp").read_text().strip()
+        return int(raw) / 1000.0
+    except Exception:
+        return None
+
+
+async def monitor_temperature(cfg: dict):
+    while True:
+        await asyncio.sleep(TEMP_CHECK_INTERVAL)
+        temp = read_cpu_temp()
+        if temp is not None and temp >= TEMP_WARN_C:
+            print(f"WARNING: CPU temp {temp:.1f}°C", flush=True)
+            push_alert(cfg, f"Pi overheating: {temp:.1f}°C", f"CPU temperature is {temp:.1f}°C — scale listener may shut down soon.", tags="warning,thermometer")
 
 
 def load_config() -> dict:
@@ -255,7 +275,26 @@ async def watch(cfg: dict, one_shot: bool):
         await asyncio.sleep(1)
 
 
-if __name__ == "__main__":
+async def main():
     one_shot = "--daemon" not in sys.argv
     cfg = load_config()
-    asyncio.run(watch(cfg, one_shot=one_shot))
+
+    loop = asyncio.get_running_loop()
+
+    def on_shutdown():
+        print("Shutdown signal received.", flush=True)
+        push_alert(cfg, "Scale listener shutting down", "The Pi scale listener received a shutdown signal and is stopping.", tags="warning,electric_plug")
+        loop.stop()
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, on_shutdown)
+
+    tasks = [asyncio.create_task(watch(cfg, one_shot=one_shot))]
+    if not one_shot and not IS_MACOS:
+        tasks.append(asyncio.create_task(monitor_temperature(cfg)))
+
+    await asyncio.gather(*tasks)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

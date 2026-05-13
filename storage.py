@@ -45,6 +45,22 @@ def save_to_file(cfg: dict, entry: dict):
     log_path.write_text(json.dumps(history, indent=2))
 
 
+def push_alert(cfg: dict, title: str, message: str, tags: str = "warning"):
+    topic = cfg.get("ntfy", {}).get("topic", "")
+    if not topic:
+        return
+    try:
+        import requests
+        requests.post(
+            f"https://ntfy.sh/{topic}",
+            data=message,
+            headers={"Title": title, "Tags": tags},
+            timeout=5,
+        )
+    except Exception as e:
+        print(f"ntfy error: {e}")
+
+
 def push_notify(cfg: dict, weight_kg: float, metrics: dict | None = None):
     topic = cfg.get("ntfy", {}).get("topic", "")
     if not topic:
