@@ -31,6 +31,7 @@ def save_to_mongo(cfg: dict, entry: dict):
         print("Saved to MongoDB", flush=True)
     except Exception as e:
         print(f"MongoDB error: {e}", flush=True)
+        push_alert(cfg, "MongoDB save failed", f"Reading saved locally but failed to reach MongoDB: {e}", tags="warning,x")
 
 
 def save_to_file(cfg: dict, entry: dict):
