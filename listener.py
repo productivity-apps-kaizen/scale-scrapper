@@ -280,11 +280,12 @@ async def main():
     cfg = load_config()
 
     loop = asyncio.get_running_loop()
+    shutdown_event = asyncio.Event()
 
     def on_shutdown():
         print("Shutdown signal received.", flush=True)
         push_alert(cfg, "Scale listener shutting down", "The Pi scale listener received a shutdown signal and is stopping.", tags="warning,electric_plug")
-        loop.stop()
+        shutdown_event.set()
 
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, on_shutdown)
@@ -293,7 +294,13 @@ async def main():
     if not one_shot and not IS_MACOS:
         tasks.append(asyncio.create_task(monitor_temperature(cfg)))
 
-    await asyncio.gather(*tasks)
+    shutdown_task = asyncio.create_task(shutdown_event.wait())
+    done, pending = await asyncio.wait(
+        [*tasks, shutdown_task],
+        return_when=asyncio.FIRST_COMPLETED,
+    )
+    for t in pending:
+        t.cancel()
 
 
 if __name__ == "__main__":
