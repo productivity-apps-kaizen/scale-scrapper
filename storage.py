@@ -85,10 +85,18 @@ def push_notify(cfg: dict, weight_kg: float, metrics: dict | None = None):
 def save_reading(cfg: dict, weight_kg: float, impedance: int | None, metrics: dict | None):
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        # Raw BIA data from scale
+        "raw": {
+            "weight_kg": weight_kg,
+            "impedance_ohm": impedance,
+        },
+        # Convenience top-level fields
         "weight_kg": weight_kg,
         "impedance": impedance,
     }
     if metrics:
+        entry["metrics"] = metrics
+        # Keep flat fields for backwards compat
         entry.update(metrics)
 
     save_to_file(cfg, entry)

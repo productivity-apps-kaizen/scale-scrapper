@@ -1,7 +1,11 @@
 """
 Body composition estimates from weight + BIA impedance.
-These are standard regression equations (Deurenberg / Kyle et al.).
-Accuracy is ±3-5% — same as the Renpho app itself.
+
+Formula: Segal et al. 1988 (validated for whole-body and consumer foot-to-foot BIA).
+Chosen over Kyle 2001 which was calibrated for clinical whole-body BIA and
+significantly overestimates body fat on consumer foot-to-foot scales (Renpho ES-26).
+
+Accuracy: ±3-5% for general population.
 """
 
 
@@ -17,10 +21,13 @@ def compute(weight_kg: float, impedance: int, height_cm: float, age: int, sex: s
     bmi = weight_kg / (height_m ** 2)
     sex_flag = 1 if sex.lower() == "male" else 0
 
-    # Fat-free mass via Kyle 2001 (validated BIA equation)
-    # FFM = 0.518 * (height² / impedance) + 0.231 * weight + 0.130 * reactance + 4.229 * sex - 6.343
-    # Simplified (no reactance available from most scales):
-    ffm = (height_cm ** 2 / impedance) * 0.518 + weight_kg * 0.231 + sex_flag * 4.229 - 6.343
+    # Fat-free mass via Segal et al. 1988
+    # Males:   FFM = 0.00066360 * H² - 0.02117 * Z + 0.62854 * weight - 0.12380 * age + 9.33285
+    # Females: FFM = 0.00091186 * H² - 0.01466 * Z + 0.29990 * weight - 0.07012 * age + 9.37938
+    if sex_flag == 1:
+        ffm = 0.00066360 * height_cm**2 - 0.02117 * impedance + 0.62854 * weight_kg - 0.12380 * age + 9.33285
+    else:
+        ffm = 0.00091186 * height_cm**2 - 0.01466 * impedance + 0.29990 * weight_kg - 0.07012 * age + 9.37938
 
     body_fat_kg = max(0.0, weight_kg - ffm)
     body_fat_pct = (body_fat_kg / weight_kg) * 100 if weight_kg > 0 else 0
